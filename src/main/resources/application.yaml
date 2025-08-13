@@ -1,0 +1,23 @@
+server:
+  port: 8081
+
+spring:
+  data:
+    redis:
+      database: 0
+      host: localhost
+      port: 6379
+
+app:
+  sse:
+    heartbeat-interval: 15s
+    subscriber-remove-delay: 10s
+    redis-max-retries: 5
+    redis-retry-backoff: 1s
+    redis-max-backoff: 30s
+    redis-channel-prefix: "notification:"
+
+logging:
+  level:
+    ru.kaznacheev.event: debug
+
