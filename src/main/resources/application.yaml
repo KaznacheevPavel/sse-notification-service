@@ -1,23 +1,29 @@
 server:
   port: 8081
 
-spring:
-  data:
-    redis:
-      database: 0
-      host: localhost
-      port: 6379
-
-app:
+application:
   sse:
     heartbeat-interval: 15s
     subscriber-remove-delay: 10s
-    redis-max-retries: 5
-    redis-retry-backoff: 1s
-    redis-max-backoff: 30s
-    redis-channel-prefix: "notification:"
-
-logging:
-  level:
-    ru.kaznacheev.event: debug
-
+    events:
+      heartbeat:
+        event-name: PING
+        comment: Heartbeat
+      start:
+        event-name: CONNECT
+        comment: Connected
+      error:
+        event-name: ERROR
+        comment: Internal error
+      notification:
+        event-name: NOTIFICATION
+        comment: New event
+  redis:
+    retry:
+      max-attempts: 5
+      initial-backoff: 1s
+      max-backoff: 30s
+      jitter-factor: 0.5
+    topics:
+      user-id-placeholder: "{userId}"
+      user-notification-pattern: notification:user:${application.redis.topics.user-id-placeholder}

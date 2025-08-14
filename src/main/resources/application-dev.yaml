@@ -1,0 +1,10 @@
+spring:
+  data:
+    redis:
+      database: 0
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    ru.kaznacheev.notification: debug
