@@ -15,18 +15,12 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final SubscriptionService subscriptionService;
     private final ApplicationProperties properties;
+    private final Flux<ServerSentEvent<Object>> heartbeatStream;
 
     @Override
     public Flux<ServerSentEvent<Object>> createNotificationsStream(String userId) {
         Subscriber subscriber = subscriptionService.getOrCreateSubscriber(userId);
         subscriber.getSubscribersCount().incrementAndGet();
-
-        Flux<ServerSentEvent<Object>> heartbeatStream = Flux.interval(properties.getSseProperties().getHeartbeatInterval())
-                .map(tick -> ServerSentEvent.builder()
-                        .event(properties.getEventsProperties().getHeartbeat().getEventName())
-                        .comment(properties.getEventsProperties().getHeartbeat().getComment())
-                        .build())
-                .share();
 
         return subscriber.getSink().asFlux()
                 .mergeWith(heartbeatStream)
