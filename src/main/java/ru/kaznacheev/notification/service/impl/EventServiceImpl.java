@@ -1,5 +1,6 @@
 package ru.kaznacheev.notification.service.impl;
 
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.connection.ReactiveSubscription;
 import org.springframework.data.redis.listener.ChannelTopic;
@@ -85,6 +86,15 @@ public class EventServiceImpl implements EventService {
                                 .jitter(properties.getRedisRetryProperties().getJitterFactor()))
                 .subscribe();
         return new Subscriber(sink, redisSubscriber);
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        sinks.values().forEach(subscriber -> {
+            subscriber.getRedisDisposable().dispose();
+            subscriber.getSink().tryEmitComplete();
+        });
+        sinks.clear();
     }
 
 }
