@@ -2,10 +2,8 @@ package ru.kaznacheev.notification.service.impl;
 
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.ReactiveSubscription;
-import org.springframework.data.redis.listener.ChannelTopic;
-import org.springframework.data.redis.listener.ReactiveRedisMessageListenerContainer;
+import org.springframework.data.redis.core.ReactiveRedisTemplate;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.Disposable;
@@ -13,6 +11,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
 import reactor.util.retry.Retry;
 import ru.kaznacheev.notification.config.ApplicationProperties;
+import ru.kaznacheev.notification.model.NotificationDto;
 import ru.kaznacheev.notification.model.Subscriber;
 import ru.kaznacheev.notification.service.SubscriptionService;
 
@@ -24,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SubscriptionServiceImpl implements SubscriptionService {
 
     private final Map<String, Subscriber> subscribers = new ConcurrentHashMap<>();
-    private final ReactiveRedisMessageListenerContainer messageListenerContainer;
+    private final ReactiveRedisTemplate<String, NotificationDto> redisTemplate;
     private final ApplicationProperties properties;
 
     @Override
@@ -53,10 +52,10 @@ public class SubscriptionServiceImpl implements SubscriptionService {
     }
 
     private Subscriber createSubscriber(String userId) {
-        ChannelTopic topic = new ChannelTopic(properties.getRedisTopicsProperties().buildNotificationTopic(userId));
+        String topic = properties.getRedisTopicsProperties().buildNotificationTopic(userId);
         Sinks.Many<ServerSentEvent<Object>> sink = Sinks.many().multicast().onBackpressureBuffer();
 
-        Disposable redisSubscriber = messageListenerContainer.receive(topic)
+        Disposable redisSubscriber = redisTemplate.listenToChannel(topic)
                 .map(ReactiveSubscription.Message::getMessage)
                 .doOnNext(message -> {
                     sink.tryEmitNext(ServerSentEvent.builder()
@@ -70,6 +69,7 @@ public class SubscriptionServiceImpl implements SubscriptionService {
                             .event(properties.getEventsProperties().getError().getEventName())
                             .comment(properties.getEventsProperties().getError().getComment())
                             .build());
+                    sink.tryEmitComplete();
                 })
                 .retryWhen(
                         Retry.backoff(properties.getRedisRetryProperties().getMaxAttempts(),
