@@ -1,6 +1,7 @@
 package ru.kaznacheev.notification.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -10,6 +11,7 @@ import ru.kaznacheev.notification.service.NotificationService;
 import ru.kaznacheev.notification.service.SubscriptionService;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class NotificationServiceImpl implements NotificationService {
 
@@ -19,8 +21,10 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public Flux<ServerSentEvent<Object>> createNotificationsStream(String userId) {
+        log.info("Подключение клиента: userId = {}", userId);
         Subscriber subscriber = subscriptionService.getOrCreateSubscriber(userId);
-        subscriber.getSubscribersCount().incrementAndGet();
+        int subscriberCount = subscriber.getSubscribersCount().incrementAndGet();
+        log.debug("Количество подписчиков для userId = {} увеличилось до {}", userId, subscriberCount);
 
         return subscriber.getSink().asFlux()
                 .mergeWith(heartbeatStream)
@@ -29,7 +33,9 @@ public class NotificationServiceImpl implements NotificationService {
                         .comment(properties.getEventsProperties().getStart().getComment())
                         .build())
                 .doFinally(signalType -> {
-                    if (subscriber.getSubscribersCount().decrementAndGet() == 0) {
+                    int subscriberLeft = subscriber.getSubscribersCount().decrementAndGet();
+                    log.info("Отключение клиента: userId = {}, осталось подписчиков - {}", userId, subscriberLeft);
+                    if (subscriberLeft == 0) {
                         subscriptionService.removeSubscriber(userId, subscriber);
                     }
                 });
