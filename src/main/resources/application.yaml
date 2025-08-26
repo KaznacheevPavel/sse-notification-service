@@ -1,6 +1,15 @@
 server:
   port: 8081
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, metrics, prometheus
+  endpoint:
+    health:
+      show-details: always
+
 application:
   sse:
     heartbeat-interval: 15s
